@@ -25,32 +25,35 @@
 	});
 
 	// event listener for scrolling, called in the outer div
-	// async because we need to wait for scroll-triggered executeQuery function to return
+	// async to wait for scroll-triggered executeQuery function to return
 
 	const loadMoreUsers = async (e: Event) => {
 		const target = e.target;
+
 		// compare in view pixels + already scrolled pixels to entire scroll height to see if at bottom
-
 		if (target.offsetHeight + target.scrollTop >= target.scrollHeight) {
-			// without isLoading, the users load to fast and load circle never shows
-			// update the skip for pagination
 
+			// update the skip for pagination
 			if (isLoading || !hasMoreUsers) return;
 			isLoading = true;
 			skip += take;
 			await executeQuery();
 		}
 	};
+
 	// query takes in our skip and take variables to be used in query slice function
 
 	const executeQuery = async () => {
-		// create query store
-		console.log('search', search)
+
+		// reset after search is made/deleted
 		if (search === ''){
 			skip = 0;
 			search = null;
-
+			allUsers.set([]);
+			hasMoreUsers = true;
 		}
+
+		// create query store
 		const query = queryStore<{ users: UserType[] }>({
 			client,
 			query: gql`
@@ -71,10 +74,10 @@
 		// subscribe method has an unsubscribe function to stop further updates (used for cleanup)
 
 		const { unsubscribe } = query.subscribe((data) => {
-			console.log('data', data)
 			if (data && data.data) {
 				const newUsers = data.data.users;
 				if (search === null) {
+					// filter out existing users so dont get key error (dubplicates)
 					allUsers.update((users) => {
 						const newUniqueUsers = newUsers.filter(
 							(newUser) => !users.find((user) => user.id === newUser.id)
@@ -89,6 +92,8 @@
 				}
 			}
 		});
+
+		//aesthetic delay to see loading circle
 		await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay for 1000 milliseconds to show loading circle
 		isLoading = false;
 		return () => unsubscribe();
