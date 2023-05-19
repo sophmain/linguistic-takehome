@@ -100,6 +100,25 @@
 	};
 </script>
 
+
+<style>
+  .search-bar {
+    display: flex;
+    justify-content: center;
+    margin: auto;
+    padding: 10px 0;
+  }
+  .search-bar input {
+    width: 98%;
+    padding: 10px;
+    font-size: 20px;
+    border: none;
+    border-radius: 5px;
+    outline: none;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+  }
+</style>
+
 <div class="w-full h-full">
 	<div class="search-bar">
 		<input type="text" bind:value={search} on:input={executeQuery} placeholder="Search by name" />
