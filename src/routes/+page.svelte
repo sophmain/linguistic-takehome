@@ -17,8 +17,7 @@
 	let hasMoreUsers: boolean = true; //if there are more users to fetch
 	const allUsers = writable<UserType[]>([]); //store to append 10 users every fetch without being overwritten
 
-	let search: string = '';
-
+	let search: string = null;
 
 	// fetch the initial set of users
 	onMount(() => {
@@ -47,6 +46,11 @@
 	const executeQuery = async () => {
 		// create query store
 		console.log('search', search)
+		if (search === ''){
+			skip = 0;
+			search = null;
+
+		}
 		const query = queryStore<{ users: UserType[] }>({
 			client,
 			query: gql`
@@ -68,16 +72,21 @@
 
 		const { unsubscribe } = query.subscribe((data) => {
 			console.log('data', data)
-			if (data && data.data && search === '') {
+			if (data && data.data) {
 				const newUsers = data.data.users;
-				allUsers.update((users) => [...users, ...newUsers]);
+				if (search === null) {
+					allUsers.update((users) => {
+						const newUniqueUsers = newUsers.filter(
+							(newUser) => !users.find((user) => user.id === newUser.id)
+						);
+						return users.concat(newUniqueUsers);
+					});
+				} else {
+					allUsers.set(newUsers);
+				}
 				if (newUsers.length < take) {
 					hasMoreUsers = false;
 				}
-			} else if (data && data.data && search !== '') {
-				const newUsers = data.data.users;
-				allUsers.update((users)=> [...newUsers])
-				console.log('allUsers', allUsers)
 			}
 		});
 		await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay for 1000 milliseconds to show loading circle

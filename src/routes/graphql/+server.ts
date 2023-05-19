@@ -15,7 +15,7 @@ const yogaApp = createYoga<RequestEvent>({
 				users: (source, args, context, info) => {
 					try {
 					  let {skip, take, search} = args
-					  console.log('args', skip)
+					  console.log('skip', skip)
 					  if (search && search !== '') {
 						console.log('search term', search)
 						const searchLowerCase = search.toLowerCase();
