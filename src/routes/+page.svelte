@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { cacheExchange, createClient, fetchExchange, gql, queryStore } from '@urql/svelte';
+	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
 	import Loader from 'components/Loader.svelte';
 	import User from 'components/User.svelte';
 	import type { UserType } from 'lib/types';
@@ -9,29 +11,88 @@
 		exchanges: [cacheExchange, fetchExchange]
 	});
 
-	const result = queryStore<{ users: UserType[] }>({
-		client,
-		query: gql`
-			query {
-				users {
-					id
-					name
-					avatar
-					email
+	const take: number = 10; //number to fetch in each request
+	let skip: number = 0; //number to skip for slice in server query
+	let isLoading: boolean = false; //if loading is happening
+	let hasMoreUsers: boolean = true; //if there are more users to fetch
+	const allUsers = writable<UserType[]>([]); //store to append 10 users every fetch without being overwritten
+
+	let searchTerm: string = '';
+
+	// fetch the initial set of users
+	onMount(() => {
+		executeQuery();
+	});
+
+	// event listener for scrolling, called in the outer div
+	// async because we need to wait for scroll-triggered executeQuery function to return
+
+	const loadMoreUsers = async (e: Event) => {
+		const target = e.target;
+		// compare in view pixels + already scrolled pixels to entire scroll height to see if at bottom
+
+		if (target.offsetHeight + target.scrollTop >= target.scrollHeight) {
+			// without isLoading, the users load to fast and load circle never shows
+			// update the skip for pagination
+
+			if (isLoading || !hasMoreUsers) return;
+			isLoading = true;
+			skip += take;
+			await executeQuery();
+		}
+	};
+	// query takes in our skip and take variables to be used in query slice function
+
+	const executeQuery = async () => {
+		// if a search term is typed, we want to query from all users
+
+		// create query store
+		const query = queryStore<{ users: UserType[] }>({
+			client,
+			query: gql`
+				query($skip: Int!, $take: Int!) {
+					users(skip: $skip, take: $take) {
+						id
+						name
+						avatar
+						email
+					}
+				}
+			`,
+			variables: { skip, take }
+		});
+		// subscribe to the query store to recieve query result
+		// if the result is available, update the allUsers store with the new users
+		// if the number of fetched users is less than `take`, set `hasMoreUsers` to false
+		// subscribe method has an unsubscribe function to stop further updates (used for cleanup)
+
+		const { unsubscribe } = query.subscribe((data) => {
+			if (data && data.data) {
+				const newUsers = data.data.users;
+				allUsers.update((users) => [...users, ...newUsers]);
+				if (newUsers.length < take) {
+					hasMoreUsers = false;
 				}
 			}
-		`
-	});
+		});
+		await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay for 1000 milliseconds
+		isLoading = false;
+		return () => unsubscribe();
+	};
 </script>
 
-<div class="w-full h-full overflow-scroll">
-	<div class="flex flex-col gap-4 items-center p-4">
-		{#if $result.fetching}
-			<Loader />
-		{:else if $result.data}
-			{#each $result.data.users as user (user.id)}
-				<User {user} />
+<div class="w-full h-full">
+	<div class="search-bar">
+	<input type="text" placeholder="Search by name" />
+	</div>
+	<div class="w-full h-full overflow-scroll" on:scroll={loadMoreUsers}>
+		<div class="flex flex-col gap-4 items-center p-4">
+			{#each $allUsers as user (user.id)}
+			<User {user} />
 			{/each}
-		{/if}
+			{#if isLoading && hasMoreUsers}
+			<Loader />
+			{/if}
+		</div>
 	</div>
 </div>

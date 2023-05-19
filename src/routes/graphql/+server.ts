@@ -12,7 +12,23 @@ const yogaApp = createYoga<RequestEvent>({
 		typeDefs: schema,
 		resolvers: {
 			Query: {
-				users: (source, args, context, info) => users
+				users: (source, args, context, info) => {
+					try {
+					  let {skip, take, searchTerm } = args
+					  if (searchTerm) {
+						console.log('search term', searchTerm)
+						const searchTermLowerCase = searchTerm.toLowerCase();
+							let filteredUsers = users.filter((user) =>
+								user.name.toLowerCase().includes(searchTermLowerCase)
+							);
+						return filteredUsers
+					  }
+					  return users.slice(skip, skip + take)
+					} catch (err) {
+					  console.error(err);
+					  throw err;
+					}
+				  }
 			}
 		}
 	}),
