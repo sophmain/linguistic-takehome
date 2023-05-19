@@ -14,18 +14,20 @@ const yogaApp = createYoga<RequestEvent>({
 			Query: {
 				users: (source, args, context, info) => {
 					try {
-					  let {skip, take, searchTerm } = args
-					  if (searchTerm) {
-						console.log('search term', searchTerm)
-						const searchTermLowerCase = searchTerm.toLowerCase();
+					  let {skip, take, search} = args
+					  console.log('args', skip)
+					  if (search && search !== '') {
+						console.log('search term', search)
+						const searchLowerCase = search.toLowerCase();
 							let filteredUsers = users.filter((user) =>
-								user.name.toLowerCase().includes(searchTermLowerCase)
+								user.name.toLowerCase().match(searchLowerCase)
 							);
 						return filteredUsers
+					  } else {
+						return users.slice(skip, skip + take)
 					  }
-					  return users.slice(skip, skip + take)
 					} catch (err) {
-					  console.error(err);
+					  	console.error(err);
 					  throw err;
 					}
 				  }

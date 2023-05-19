@@ -17,7 +17,8 @@
 	let hasMoreUsers: boolean = true; //if there are more users to fetch
 	const allUsers = writable<UserType[]>([]); //store to append 10 users every fetch without being overwritten
 
-	let searchTerm: string = '';
+	let search: string = '';
+
 
 	// fetch the initial set of users
 	onMount(() => {
@@ -44,14 +45,13 @@
 	// query takes in our skip and take variables to be used in query slice function
 
 	const executeQuery = async () => {
-		// if a search term is typed, we want to query from all users
-
 		// create query store
+		console.log('search', search)
 		const query = queryStore<{ users: UserType[] }>({
 			client,
 			query: gql`
-				query($skip: Int!, $take: Int!) {
-					users(skip: $skip, take: $take) {
+				query($skip: Int!, $take: Int!, $search: String) {
+					users(skip: $skip, take: $take, search: $search) {
 						id
 						name
 						avatar
@@ -59,7 +59,7 @@
 					}
 				}
 			`,
-			variables: { skip, take }
+			variables: { skip, take, search }
 		});
 		// subscribe to the query store to recieve query result
 		// if the result is available, update the allUsers store with the new users
@@ -67,15 +67,20 @@
 		// subscribe method has an unsubscribe function to stop further updates (used for cleanup)
 
 		const { unsubscribe } = query.subscribe((data) => {
-			if (data && data.data) {
+			console.log('data', data)
+			if (data && data.data && search === '') {
 				const newUsers = data.data.users;
 				allUsers.update((users) => [...users, ...newUsers]);
 				if (newUsers.length < take) {
 					hasMoreUsers = false;
 				}
+			} else if (data && data.data && search !== '') {
+				const newUsers = data.data.users;
+				allUsers.update((users)=> [...newUsers])
+				console.log('allUsers', allUsers)
 			}
 		});
-		await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay for 1000 milliseconds
+		await new Promise((resolve) => setTimeout(resolve, 1000)); // Delay for 1000 milliseconds to show loading circle
 		isLoading = false;
 		return () => unsubscribe();
 	};
@@ -83,15 +88,15 @@
 
 <div class="w-full h-full">
 	<div class="search-bar">
-	<input type="text" placeholder="Search by name" />
+		<input type="text" bind:value={search} on:input={executeQuery} placeholder="Search by name" />
 	</div>
 	<div class="w-full h-full overflow-scroll" on:scroll={loadMoreUsers}>
 		<div class="flex flex-col gap-4 items-center p-4">
 			{#each $allUsers as user (user.id)}
-			<User {user} />
+				<User {user} />
 			{/each}
 			{#if isLoading && hasMoreUsers}
-			<Loader />
+				<Loader />
 			{/if}
 		</div>
 	</div>
